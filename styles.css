@@ -21,6 +21,16 @@ nav {
   background: #020617;
 }
 
+.nav-toggle {
+  display: none;
+  background: #0b1220;
+  color: #e5e7eb;
+  border: 1px solid #1f2937;
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 1rem;
+}
+
 nav ul {
   display: flex;
   list-style: none;
@@ -215,12 +225,49 @@ h2 {
   }
 }
 @media (max-width: 900px) {
+  nav {
+    padding: 16px 6%;
+    align-items: center;
+    gap: 10px;
+  }
+  .nav-toggle {
+    display: inline-block;
+  }
+  nav ul {
+    display: none;
+    flex-direction: column;
+    gap: 12px;
+    background: #020617;
+    border: 1px solid #0b1220;
+    border-radius: 8px;
+    padding: 10px;
+    position: absolute;
+    right: 6%;
+    top: 60px;
+    min-width: 180px;
+  }
+  nav.open ul {
+    display: flex;
+  }
+  section {
+    padding: 56px 6%;
+  }
+  h2 {
+    font-size: 1.6rem;
+  }
   #about .about-grid {
     grid-template-columns: 1fr;
   }
   .about-photo {
     width: 180px;
     height: 180px;
+  }
+  .flip-inner {
+    height: 240px;
+  }
+  .social-icons svg {
+    width: 28px;
+    height: 28px;
   }
 }
 /* Skills */
