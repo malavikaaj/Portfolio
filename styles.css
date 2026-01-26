@@ -23,12 +23,14 @@ nav {
 
 .nav-toggle {
   display: none;
-  background: #0b1220;
-  color: #e5e7eb;
-  border: 1px solid #1f2937;
+  appearance: none;
+  background: transparent;
+  color: #38bdf8;
+  border: none;
   border-radius: 6px;
-  padding: 6px 10px;
-  font-size: 1rem;
+  padding: 6px 8px;
+  font-size: 24px;
+  line-height: 1;
 }
 
 nav ul {
@@ -229,9 +231,13 @@ h2 {
     padding: 16px 6%;
     align-items: center;
     gap: 10px;
+    position: relative;
   }
   .nav-toggle {
     display: inline-block;
+    position: absolute;
+    right: 6%;
+    top: 16px;
   }
   nav ul {
     display: none;
