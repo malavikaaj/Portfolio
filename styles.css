@@ -292,6 +292,10 @@ h2 {
   font-weight: 600;
   transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
   box-shadow: 0 4px 10px rgba(2, 6, 23, 0.4);
+  display: inline-block;
+  line-height: 1.2;
+  white-space: normal;
+  align-self: center;
 }
 
 .skills-grid span:hover {
@@ -329,6 +333,7 @@ h2 {
   margin: 0 auto;
   justify-items: center;
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  align-items: center;
 }
 
 .skills {
