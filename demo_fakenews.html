@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fake News Detection — Explainability Demo</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300&family=Syne:wght@400;500;700&family=JetBrains+Mono:wght@300;400&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#0c0b09;--ink2:#141310;--ink3:#1e1c19;--ink4:#252320;
+  --cream:#f0ead8;--cream2:#c8bfa8;--cream3:#7a7060;
+  --gold:#d4a843;--gold2:#f0c060;--gold3:#8a6820;
+  --red:#e05a4a;--red2:rgba(224,90,74,0.15);--red3:rgba(224,90,74,0.35);
+  --green:#4caf7d;--green2:rgba(76,175,125,0.15);--green3:rgba(76,175,125,0.35);
+  --amber:#f0a030;--amber2:rgba(240,160,48,0.15);
+  --mono:'JetBrains Mono',monospace;
+  --serif:'Cormorant Garamond',serif;
+  --sans:'Syne',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--ink);color:var(--cream);font-family:var(--sans);min-height:100vh;}
+
+.demo-header{padding:28px 40px 20px;border-bottom:1px solid rgba(212,168,67,0.15);display:flex;align-items:center;justify-content:space-between;}
+.demo-title{font-family:var(--serif);font-size:22px;font-weight:300;}
+.demo-title span{color:var(--gold);font-style:italic;}
+.model-badge{font-family:var(--mono);font-size:10px;letter-spacing:0.12em;color:var(--cream3);background:var(--ink3);border:1px solid rgba(240,234,216,0.1);padding:5px 12px;}
+
+.layout{display:grid;grid-template-columns:1fr 380px;min-height:calc(100vh - 73px);}
+
+/* LEFT — Input + Output */
+.left-panel{padding:32px 36px;display:flex;flex-direction:column;gap:28px;}
+
+.input-section{}
+.section-label{font-family:var(--mono);font-size:10px;letter-spacing:0.2em;text-transform:uppercase;color:var(--gold);margin-bottom:12px;display:flex;align-items:center;gap:12px;}
+.section-label::after{content:'';flex:1;max-width:50px;height:1px;background:var(--gold3);}
+
+.input-area{width:100%;background:var(--ink2);border:1px solid rgba(240,234,216,0.1);color:var(--cream);font-family:var(--sans);font-size:15px;line-height:1.6;padding:16px 18px;resize:vertical;min-height:100px;outline:none;transition:border-color 0.2s;}
+.input-area:focus{border-color:rgba(212,168,67,0.4);}
+.input-area::placeholder{color:var(--cream3);}
+
+.example-pills{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;}
+.example-pill{font-family:var(--mono);font-size:10px;letter-spacing:0.05em;padding:5px 12px;background:var(--ink3);border:1px solid rgba(240,234,216,0.1);color:var(--cream3);cursor:pointer;transition:all 0.2s;}
+.example-pill:hover{border-color:rgba(212,168,67,0.3);color:var(--cream);}
+
+.analyse-btn{margin-top:14px;padding:13px 32px;background:var(--gold);color:var(--ink);font-family:var(--mono);font-size:11px;letter-spacing:0.15em;text-transform:uppercase;border:none;cursor:pointer;width:100%;transition:background 0.2s;}
+.analyse-btn:hover{background:var(--gold2);}
+.analyse-btn:disabled{background:var(--gold3);cursor:not-allowed;}
+
+/* RESULT */
+.result-section{display:none;}
+.result-section.visible{display:block;}
+
+.verdict-bar{display:flex;align-items:center;gap:20px;padding:20px 24px;margin-bottom:20px;}
+.verdict-bar.fake{background:rgba(224,90,74,0.08);border:1px solid rgba(224,90,74,0.25);}
+.verdict-bar.real{background:rgba(76,175,125,0.08);border:1px solid rgba(76,175,125,0.25);}
+.verdict-bar.uncertain{background:rgba(212,168,67,0.08);border:1px solid rgba(212,168,67,0.2);}
+.verdict-icon{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;}
+.verdict-icon.fake{background:var(--red2);}
+.verdict-icon.real{background:var(--green2);}
+.verdict-icon.uncertain{background:var(--amber2);}
+.verdict-label{font-family:var(--serif);font-size:26px;font-weight:400;line-height:1;}
+.verdict-label.fake{color:var(--red);}
+.verdict-label.real{color:var(--green);}
+.verdict-label.uncertain{color:var(--amber);}
+.verdict-sub{font-family:var(--mono);font-size:11px;color:var(--cream3);margin-top:4px;}
+
+.confidence-row{display:flex;align-items:center;gap:16px;margin-left:auto;}
+.conf-ring{position:relative;width:64px;height:64px;}
+.conf-ring svg{transform:rotate(-90deg);}
+.conf-center{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:13px;font-weight:400;}
+
+/* HIGHLIGHTED TEXT */
+.highlight-area{background:var(--ink3);border:1px solid rgba(240,234,216,0.08);padding:20px;line-height:2.2;font-size:15px;font-family:var(--sans);}
+.word{display:inline;padding:2px 0;border-radius:2px;cursor:default;transition:opacity 0.2s;}
+.word:hover{opacity:0.8;}
+.word.fake-strong{background:rgba(224,90,74,0.4);color:#fff;}
+.word.fake-mid{background:rgba(224,90,74,0.2);color:var(--cream);}
+.word.fake-weak{background:rgba(224,90,74,0.08);}
+.word.real-strong{background:rgba(76,175,125,0.4);color:#fff;}
+.word.real-mid{background:rgba(76,175,125,0.2);color:var(--cream);}
+.word.real-weak{background:rgba(76,175,125,0.08);}
+.word.neutral{background:transparent;}
+
+.highlight-legend{display:flex;gap:16px;margin-top:12px;flex-wrap:wrap;}
+.legend-item{display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:10px;color:var(--cream3);}
+.legend-swatch{width:24px;height:10px;border-radius:2px;}
+
+/* RIGHT — SHAP + Bias */
+.right-panel{background:var(--ink2);border-left:1px solid rgba(240,234,216,0.06);padding:28px 24px;display:flex;flex-direction:column;gap:28px;}
+
+.shap-chart{display:flex;flex-direction:column;gap:6px;}
+.shap-row{display:flex;align-items:center;gap:10px;font-size:13px;}
+.shap-word{font-family:var(--mono);font-size:11px;color:var(--cream2);width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:right;}
+.shap-bar-wrap{flex:1;height:18px;background:rgba(240,234,216,0.04);border-radius:2px;overflow:hidden;position:relative;}
+.shap-bar{height:100%;border-radius:2px;transition:width 0.6s ease;}
+.shap-bar.positive{background:var(--red);}
+.shap-bar.negative{background:var(--green);}
+.shap-val{font-family:var(--mono);font-size:10px;color:var(--cream3);width:40px;}
+
+.bias-flags{display:flex;flex-direction:column;gap:8px;}
+.bias-flag{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:var(--ink3);border-left:2px solid transparent;font-size:13px;}
+.bias-flag.high{border-left-color:var(--red);}
+.bias-flag.medium{border-left-color:var(--amber);}
+.bias-flag.low{border-left-color:var(--green);}
+.bias-name{color:var(--cream2);font-size:12px;}
+.bias-level{font-family:var(--mono);font-size:10px;letter-spacing:0.1em;text-transform:uppercase;}
+.bias-level.high{color:var(--red);}
+.bias-level.medium{color:var(--amber);}
+.bias-level.low{color:var(--green);}
+
+.processing{display:none;align-items:center;gap:12px;padding:20px;font-family:var(--mono);font-size:12px;color:var(--cream3);}
+.processing.visible{display:flex;}
+.spinner{width:16px;height:16px;border:2px solid rgba(212,168,67,0.2);border-top-color:var(--gold);border-radius:50%;animation:spin 0.8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+@media(max-width:900px){
+  .layout{grid-template-columns:1fr;}
+  .right-panel{border-left:none;border-top:1px solid rgba(240,234,216,0.06);}
+}
+</style>
+</head>
+<body>
+
+<div class="demo-header">
+  <div class="demo-title"><span>Explainable</span> Fake News Detection — SHAP + RoBERTa Demo</div>
+  <div class="model-badge">RoBERTa · SHAP · LIME · WELFake</div>
+</div>
+
+<div class="layout">
+  <div class="left-panel">
+
+    <div class="input-section">
+      <div class="section-label">01 — Input</div>
+      <textarea class="input-area" id="text-input" placeholder="Paste a news headline or article excerpt to analyse..."></textarea>
+      <div class="example-pills">
+        <div class="example-pill" onclick="loadExample(0)">Vaccine microchip</div>
+        <div class="example-pill" onclick="loadExample(1)">Climate study</div>
+        <div class="example-pill" onclick="loadExample(2)">Election fraud</div>
+        <div class="example-pill" onclick="loadExample(3)">Factual report</div>
+        <div class="example-pill" onclick="loadExample(4)">Health claim</div>
+      </div>
+      <button class="analyse-btn" id="analyse-btn" onclick="analyse()">Analyse Text →</button>
+    </div>
+
+    <div class="processing" id="processing">
+      <div class="spinner"></div>
+      <span>Running RoBERTa inference + computing SHAP attributions...</span>
+    </div>
+
+    <div class="result-section" id="result-section">
+      <div class="section-label">02 — Verdict</div>
+      <div class="verdict-bar" id="verdict-bar">
+        <div class="verdict-icon" id="verdict-icon"></div>
+        <div>
+          <div class="verdict-label" id="verdict-label"></div>
+          <div class="verdict-sub" id="verdict-sub"></div>
+        </div>
+        <div class="confidence-row">
+          <div>
+            <div style="font-family:var(--mono);font-size:9px;letter-spacing:0.15em;text-transform:uppercase;color:var(--cream3);margin-bottom:6px;text-align:center;">Confidence</div>
+            <div class="conf-ring">
+              <svg width="64" height="64" viewBox="0 0 64 64">
+                <circle cx="32" cy="32" r="26" fill="none" stroke="rgba(240,234,216,0.08)" stroke-width="5"/>
+                <circle cx="32" cy="32" r="26" fill="none" stroke-width="5" stroke-linecap="round" id="conf-arc" stroke-dasharray="163" stroke-dashoffset="163"/>
+              </svg>
+              <div class="conf-center" id="conf-pct"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section-label">03 — Word Attribution (SHAP)</div>
+      <div style="font-family:var(--mono);font-size:10px;color:var(--cream3);margin-bottom:10px;letter-spacing:0.05em;">Red = pushes toward FAKE &nbsp;·&nbsp; Green = pushes toward REAL &nbsp;·&nbsp; Intensity = SHAP value magnitude</div>
+      <div class="highlight-area" id="highlight-area"></div>
+      <div class="highlight-legend">
+        <div class="legend-item"><div class="legend-swatch" style="background:rgba(224,90,74,0.4)"></div>Strong fake signal</div>
+        <div class="legend-item"><div class="legend-swatch" style="background:rgba(224,90,74,0.15)"></div>Mild fake signal</div>
+        <div class="legend-item"><div class="legend-swatch" style="background:rgba(76,175,125,0.4)"></div>Strong real signal</div>
+        <div class="legend-item"><div class="legend-swatch" style="background:rgba(76,175,125,0.15)"></div>Mild real signal</div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="right-panel">
+    <div>
+      <div class="section-label">Top SHAP Features</div>
+      <div class="shap-chart" id="shap-chart">
+        <div style="font-family:var(--mono);font-size:11px;color:var(--cream3);text-align:center;padding:40px 0;">Run analysis to see feature attributions</div>
+      </div>
+    </div>
+
+    <div>
+      <div class="section-label">Bias Detection</div>
+      <div class="bias-flags" id="bias-flags">
+        <div style="font-family:var(--mono);font-size:11px;color:var(--cream3);text-align:center;padding:20px 0;">Run analysis to see bias flags</div>
+      </div>
+    </div>
+
+    <div>
+      <div class="section-label">Model Info</div>
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <div style="display:flex;justify-content:space-between;font-size:13px;padding:6px 0;border-bottom:0.5px solid rgba(240,234,216,0.06);">
+          <span style="color:var(--cream3)">Base model</span><span style="font-family:var(--mono);font-size:11px;color:var(--cream)">RoBERTa-base</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:13px;padding:6px 0;border-bottom:0.5px solid rgba(240,234,216,0.06);">
+          <span style="color:var(--cream3)">Training data</span><span style="font-family:var(--mono);font-size:11px;color:var(--cream)">WELFake (72K)</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:13px;padding:6px 0;border-bottom:0.5px solid rgba(240,234,216,0.06);">
+          <span style="color:var(--cream3)">Explainability</span><span style="font-family:var(--mono);font-size:11px;color:var(--cream)">SHAP + LIME</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:13px;padding:6px 0;">
+          <span style="color:var(--cream3)">Bias checks</span><span style="font-family:var(--mono);font-size:11px;color:var(--cream)">Political · Emotional · Source</span>
+        </div>
+      </div>
+      <div style="margin-top:16px;padding:12px;background:var(--ink3);border-left:2px solid var(--gold3);">
+        <div style="font-family:var(--mono);font-size:10px;color:var(--cream3);line-height:1.6;">This demo simulates the SHAP attribution pipeline. In the full system, attributions are computed using kernel SHAP against the fine-tuned RoBERTa classifier, producing per-token importance scores that journalists can point to when justifying fact-check conclusions.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const examples = [
+  "Scientists CONFIRM vaccines contain microchips to track citizens — Government hiding SHOCKING truth from public",
+  "New peer-reviewed study finds 2°C warming threshold may be reached sooner than projected, researchers warn",
+  "BREAKING: Massive voter fraud uncovered in swing states — MILLIONS of illegal ballots cast, sources claim",
+  "The Federal Reserve raised interest rates by 25 basis points on Wednesday, marking the fourth increase this year",
+  "Doctors HATE this one weird trick — local man cures diabetes in 3 days using kitchen ingredient"
+];
+
+const fakeSignalWords = new Set([
+  'confirm','confirms','confirmed','shocking','truth','hiding','massive','breaking','millions','illegal',
+  'sources','claim','claims','hate','cures','cure','trick','weird','secret','exposed','admit','admits',
+  'bombshell','proof','hoax','conspiracy','deep state','they','globalist','wake up','mainstream','media',
+  'government','suppressed','forbidden','banned','censored','big pharma','rigged','stolen','fraud'
+]);
+const realSignalWords = new Set([
+  'study','research','researchers','published','peer-reviewed','scientists','according','reported',
+  'data','analysis','percent','federal','reserve','university','journal','evidence','shows','found',
+  'increase','decrease','said','stated','announced','report','survey','results','measured','observed'
+]);
+const emotionalWords = new Set([
+  'shocking','massive','breaking','millions','hate','cures','weird','confirm','bombshell','devastating',
+  'outrageous','incredible','unbelievable','stunning','explosive','scandalous'
+]);
+const politicalWords = new Set([
+  'government','federal','election','voter','fraud','illegal','ballots','swing','states','president',
+  'democrat','republican','liberal','conservative','left','right','administration','congress'
+]);
+
+function loadExample(i) {
+  document.getElementById('text-input').value = examples[i];
+  document.getElementById('result-section').classList.remove('visible');
+}
+
+function tokenize(text) {
+  return text.split(/(\s+|[,.!?;:'"()[\]{}])/).filter(t => t.trim().length > 0);
+}
+
+function scoreToken(token) {
+  const lower = token.toLowerCase().replace(/[^a-z]/g, '');
+  if (fakeSignalWords.has(lower)) return Math.random() * 0.4 + 0.5;
+  if (realSignalWords.has(lower)) return -(Math.random() * 0.3 + 0.3);
+  if (lower.length < 3) return 0;
+  if (/^[A-Z]{2,}/.test(token)) return Math.random() * 0.3 + 0.2;
+  return (Math.random() - 0.5) * 0.15;
+}
+
+function classWord(score) {
+  if (score > 0.5) return 'fake-strong';
+  if (score > 0.2) return 'fake-mid';
+  if (score > 0.05) return 'fake-weak';
+  if (score < -0.4) return 'real-strong';
+  if (score < -0.2) return 'real-mid';
+  if (score < -0.05) return 'real-weak';
+  return 'neutral';
+}
+
+function analyse() {
+  const text = document.getElementById('text-input').value.trim();
+  if (!text) return;
+
+  document.getElementById('analyse-btn').disabled = true;
+  document.getElementById('result-section').classList.remove('visible');
+  document.getElementById('processing').classList.add('visible');
+
+  setTimeout(() => {
+    document.getElementById('processing').classList.remove('visible');
+    runAnalysis(text);
+    document.getElementById('analyse-btn').disabled = false;
+  }, 1800);
+}
+
+function runAnalysis(text) {
+  const tokens = tokenize(text);
+  const scores = tokens.map(t => ({ token: t, score: scoreToken(t) }));
+  const totalFake = scores.reduce((s, t) => s + Math.max(0, t.score), 0);
+  const totalReal = scores.reduce((s, t) => s + Math.max(0, -t.score), 0);
+  const fakeProb = Math.min(0.97, Math.max(0.03, totalFake / (totalFake + totalReal + 0.5)));
+
+  const words = text.toLowerCase().split(/\s+/).map(w => w.replace(/[^a-z]/g,''));
+  const hasEmotional = words.some(w => emotionalWords.has(w));
+  const hasPolitical = words.some(w => politicalWords.has(w));
+  const hasCaps = (text.match(/\b[A-Z]{3,}\b/g) || []).length > 0;
+  const hasExclaim = text.includes('!');
+
+  let verdict, biasLevel;
+  if (fakeProb > 0.65) { verdict = 'fake'; }
+  else if (fakeProb < 0.35) { verdict = 'real'; }
+  else { verdict = 'uncertain'; }
+
+  const confidence = verdict === 'uncertain'
+    ? Math.round(50 + Math.random() * 15)
+    : Math.round((verdict === 'fake' ? fakeProb : 1 - fakeProb) * 100);
+
+  // Verdict display
+  const vBar = document.getElementById('verdict-bar');
+  const vIcon = document.getElementById('verdict-icon');
+  const vLabel = document.getElementById('verdict-label');
+  const vSub = document.getElementById('verdict-sub');
+  vBar.className = 'verdict-bar ' + verdict;
+  vIcon.className = 'verdict-icon ' + verdict;
+  vIcon.textContent = verdict === 'fake' ? '✗' : verdict === 'real' ? '✓' : '?';
+  vLabel.className = 'verdict-label ' + verdict;
+  vLabel.textContent = verdict === 'fake' ? 'Likely Misinformation' : verdict === 'real' ? 'Likely Credible' : 'Uncertain';
+  vSub.textContent = verdict === 'fake'
+    ? 'Multiple high-weight fake-news signals detected'
+    : verdict === 'real' ? 'Language patterns consistent with factual reporting'
+    : 'Mixed signals — manual review recommended';
+
+  // Confidence ring
+  const arc = document.getElementById('conf-arc');
+  const circumference = 163;
+  const offset = circumference - (confidence / 100) * circumference;
+  arc.style.strokeDashoffset = offset;
+  arc.style.stroke = verdict === 'fake' ? '#e05a4a' : verdict === 'real' ? '#4caf7d' : '#d4a843';
+  document.getElementById('conf-pct').textContent = confidence + '%';
+  document.getElementById('conf-pct').style.color = verdict === 'fake' ? '#e05a4a' : verdict === 'real' ? '#4caf7d' : '#d4a843';
+
+  // Highlighted text
+  const haDiv = document.getElementById('highlight-area');
+  haDiv.innerHTML = scores.map(({ token, score }) => {
+    const cls = classWord(score);
+    const title = Math.abs(score) > 0.05 ? `title="SHAP: ${score > 0 ? '+' : ''}${score.toFixed(3)}"` : '';
+    return `<span class="word ${cls}" ${title}>${token} </span>`;
+  }).join('');
+
+  // SHAP chart — top 8 by abs value
+  const topTokens = [...scores]
+    .filter(t => Math.abs(t.score) > 0.05 && t.token.length > 2)
+    .sort((a, b) => Math.abs(b.score) - Math.abs(a.score))
+    .slice(0, 8);
+
+  const maxAbs = Math.max(...topTokens.map(t => Math.abs(t.score)), 0.01);
+  document.getElementById('shap-chart').innerHTML = topTokens.length ? topTokens.map(t => `
+    <div class="shap-row">
+      <div class="shap-word">${t.token.replace(/[<>]/g,'')}</div>
+      <div class="shap-bar-wrap">
+        <div class="shap-bar ${t.score > 0 ? 'positive' : 'negative'}"
+             style="width:${Math.round((Math.abs(t.score)/maxAbs)*100)}%"></div>
+      </div>
+      <div class="shap-val">${t.score > 0 ? '+' : ''}${t.score.toFixed(3)}</div>
+    </div>`).join('') :
+    '<div style="font-family:var(--mono);font-size:11px;color:var(--cream3);padding:20px 0;text-align:center;">No significant features detected</div>';
+
+  // Bias flags
+  const flags = [
+    { name: 'Emotional language', level: hasEmotional ? 'high' : hasCaps ? 'medium' : 'low' },
+    { name: 'Political framing', level: hasPolitical ? (verdict === 'fake' ? 'high' : 'medium') : 'low' },
+    { name: 'Sensationalism', level: (hasCaps || hasExclaim) ? 'high' : hasEmotional ? 'medium' : 'low' },
+    { name: 'Source attribution', level: words.some(w => ['according','reported','said','study'].includes(w)) ? 'low' : 'medium' },
+  ];
+  document.getElementById('bias-flags').innerHTML = flags.map(f => `
+    <div class="bias-flag ${f.level}">
+      <span class="bias-name">${f.name}</span>
+      <span class="bias-level ${f.level}">${f.level}</span>
+    </div>`).join('');
+
+  document.getElementById('result-section').classList.add('visible');
+}
+</script>
+</body>
+</html>

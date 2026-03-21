@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RL Adaptive Time Synchronisation — Live Demo</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300&family=Syne:wght@400;500;700&family=JetBrains+Mono:wght@300;400&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#0c0b09;--ink2:#141310;--ink3:#1e1c19;
+  --cream:#f0ead8;--cream2:#c8bfa8;--cream3:#7a7060;
+  --gold:#d4a843;--gold2:#f0c060;--gold3:#8a6820;
+  --green:#4caf7d;--green2:#2d7a52;
+  --red:#e05a4a;--red2:#a03a2a;
+  --blue:#4a8fd4;--amber:#f0a030;
+  --mono:'JetBrains Mono',monospace;
+  --serif:'Cormorant Garamond',serif;
+  --sans:'Syne',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--ink);color:var(--cream);font-family:var(--sans);min-height:100vh;}
+
+.demo-header{padding:28px 40px 20px;border-bottom:1px solid rgba(212,168,67,0.15);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;}
+.demo-title{font-family:var(--serif);font-size:22px;font-weight:300;}
+.demo-title span{color:var(--gold);font-style:italic;}
+.header-right{display:flex;align-items:center;gap:12px;}
+.running-badge{font-family:var(--mono);font-size:10px;letter-spacing:0.12em;color:var(--green);background:rgba(76,175,125,0.08);border:1px solid rgba(76,175,125,0.2);padding:5px 12px;}
+.live-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--green);margin-right:6px;animation:pulse 1.8s ease-in-out infinite;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.4;}}
+
+/* MAIN LAYOUT */
+.main{display:grid;grid-template-columns:1fr 1fr;gap:2px;padding:2px;}
+
+/* NODE PANELS */
+.node-panel{background:var(--ink2);padding:28px 28px 20px;display:flex;flex-direction:column;gap:20px;}
+.node-header{display:flex;align-items:center;justify-content:space-between;}
+.node-title{font-family:var(--mono);font-size:11px;letter-spacing:0.2em;text-transform:uppercase;}
+.node-title.static{color:var(--cream3);}
+.node-title.rl{color:var(--green);}
+.node-type{font-family:var(--mono);font-size:10px;padding:4px 10px;letter-spacing:0.1em;text-transform:uppercase;}
+.node-type.static{background:rgba(240,234,216,0.06);color:var(--cream3);border:1px solid rgba(240,234,216,0.1);}
+.node-type.rl{background:rgba(76,175,125,0.08);color:var(--green);border:1px solid rgba(76,175,125,0.2);}
+
+/* CLOCK */
+.clock-wrap{display:flex;align-items:center;justify-content:center;padding:12px 0;}
+.clock-face{position:relative;width:180px;height:180px;}
+.clock-face svg{width:100%;height:100%;}
+.clock-time{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;}
+.clock-hm{font-family:var(--serif);font-size:30px;font-weight:300;color:var(--cream);line-height:1;}
+.clock-ms{font-family:var(--mono);font-size:13px;color:var(--cream3);margin-top:3px;}
+
+/* DRIFT METER */
+.drift-section{display:flex;flex-direction:column;gap:8px;}
+.drift-row{display:flex;align-items:center;justify-content:space-between;}
+.drift-label{font-family:var(--mono);font-size:10px;letter-spacing:0.12em;text-transform:uppercase;color:var(--cream3);}
+.drift-val{font-family:var(--serif);font-size:28px;font-weight:300;}
+.drift-val.ok{color:var(--green);}
+.drift-val.warn{color:var(--amber);}
+.drift-val.bad{color:var(--red);}
+.drift-unit{font-family:var(--mono);font-size:11px;color:var(--cream3);margin-left:4px;}
+.drift-bar-wrap{height:6px;background:rgba(240,234,216,0.06);border-radius:3px;overflow:hidden;}
+.drift-bar{height:100%;border-radius:3px;transition:width 0.4s ease,background 0.4s ease;}
+
+/* NODE STATS */
+.node-stats{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.ns-item{background:var(--ink3);padding:10px 12px;}
+.ns-label{font-family:var(--mono);font-size:9px;letter-spacing:0.12em;text-transform:uppercase;color:var(--cream3);margin-bottom:4px;}
+.ns-val{font-family:var(--mono);font-size:14px;color:var(--cream);}
+.ns-val.green{color:var(--green);}
+.ns-val.red{color:var(--red);}
+.ns-val.amber{color:var(--amber);}
+
+/* RL STATE */
+.rl-state{background:var(--ink3);border-left:2px solid var(--green2);padding:12px 14px;}
+.rl-state-title{font-family:var(--mono);font-size:9px;letter-spacing:0.15em;text-transform:uppercase;color:var(--green);margin-bottom:8px;}
+.rl-action{font-size:12px;color:var(--cream2);margin-bottom:4px;font-family:var(--mono);}
+.rl-reward{font-size:12px;color:var(--cream3);font-family:var(--mono);}
+
+/* BOTTOM CONTROLS + CHART */
+.bottom-section{grid-column:span 2;background:var(--ink);padding:24px 32px;display:flex;flex-direction:column;gap:20px;}
+
+.events-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
+.event-label{font-family:var(--mono);font-size:10px;letter-spacing:0.15em;text-transform:uppercase;color:var(--cream3);}
+.event-btn{padding:8px 16px;font-family:var(--mono);font-size:10px;letter-spacing:0.1em;text-transform:uppercase;background:none;border:1px solid rgba(240,234,216,0.15);color:var(--cream3);cursor:pointer;transition:all 0.2s;}
+.event-btn.spoof{border-color:rgba(224,90,74,0.3);color:var(--red);}
+.event-btn.spoof:hover{background:rgba(224,90,74,0.1);}
+.event-btn.byzantine{border-color:rgba(240,160,48,0.3);color:var(--amber);}
+.event-btn.byzantine:hover{background:rgba(240,160,48,0.1);}
+.event-btn.delay{border-color:rgba(74,143,212,0.3);color:var(--blue);}
+.event-btn.delay:hover{background:rgba(74,143,212,0.1);}
+.event-btn.reset{border-color:rgba(240,234,216,0.15);color:var(--cream3);}
+.event-btn.reset:hover{background:rgba(240,234,216,0.05);}
+
+.chart-section{}
+.chart-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
+.chart-title{font-family:var(--mono);font-size:10px;letter-spacing:0.15em;text-transform:uppercase;color:var(--cream3);}
+.chart-legend{display:flex;gap:20px;}
+.legend-item{display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:10px;color:var(--cream3);}
+.legend-dot{width:20px;height:3px;border-radius:2px;}
+canvas{width:100%;height:130px;display:block;}
+
+/* EVENT LOG */
+.event-log{display:flex;flex-direction:column;gap:4px;max-height:90px;overflow:hidden;}
+.log-entry{font-family:var(--mono);font-size:11px;padding:4px 0;border-bottom:0.5px solid rgba(240,234,216,0.04);display:flex;gap:12px;}
+.log-time{color:var(--cream3);min-width:60px;}
+.log-msg{flex:1;}
+.log-msg.spoof{color:var(--red);}
+.log-msg.rl{color:var(--green);}
+.log-msg.info{color:var(--cream2);}
+.log-msg.byzantine{color:var(--amber);}
+
+.comparison-strip{display:flex;gap:2px;}
+.comp-item{flex:1;background:var(--ink3);padding:12px 16px;text-align:center;}
+.comp-label{font-family:var(--mono);font-size:9px;letter-spacing:0.12em;text-transform:uppercase;color:var(--cream3);margin-bottom:4px;}
+.comp-val{font-family:var(--serif);font-size:22px;font-weight:300;}
+.comp-val.good{color:var(--green);}
+.comp-val.bad{color:var(--red);}
+.comp-val.gold{color:var(--gold);}
+
+@media(max-width:800px){
+  .main{grid-template-columns:1fr;}
+  .bottom-section{grid-column:span 1;}
+}
+</style>
+</head>
+<body>
+
+<div class="demo-header">
+  <div class="demo-title"><span>RL-Adaptive</span> Time Synchronisation — Adversarial Resilience Demo</div>
+  <div class="header-right">
+    <div class="running-badge"><span class="live-dot"></span>Simulation running</div>
+  </div>
+</div>
+
+<div class="main">
+
+  <!-- STATIC NODE -->
+  <div class="node-panel">
+    <div class="node-header">
+      <div class="node-title static">Node A — Static NTP Sync</div>
+      <div class="node-type static">Static</div>
+    </div>
+    <div class="clock-wrap">
+      <div class="clock-face">
+        <svg viewBox="0 0 180 180">
+          <circle cx="90" cy="90" r="82" fill="none" stroke="rgba(240,234,216,0.08)" stroke-width="1"/>
+          <circle cx="90" cy="90" r="76" fill="rgba(12,11,9,0.8)" stroke="none"/>
+          <circle id="static-drift-ring" cx="90" cy="90" r="76" fill="none" stroke="rgba(224,90,74,0.15)" stroke-width="6"/>
+          <line id="static-hour" x1="90" y1="90" x2="90" y2="40" stroke="rgba(240,234,216,0.5)" stroke-width="3" stroke-linecap="round"/>
+          <line id="static-min" x1="90" y1="90" x2="90" y2="25" stroke="rgba(240,234,216,0.7)" stroke-width="2" stroke-linecap="round"/>
+          <line id="static-sec" x1="90" y1="90" x2="90" y2="18" stroke="var(--red)" stroke-width="1" stroke-linecap="round"/>
+          <circle cx="90" cy="90" r="3" fill="var(--cream3)"/>
+          <text x="90" y="155" text-anchor="middle" fill="rgba(240,234,216,0.3)" font-family="JetBrains Mono" font-size="9" letter-spacing="2">STATIC</text>
+        </svg>
+        <div class="clock-time">
+          <div class="clock-hm" id="static-hm">--:--</div>
+          <div class="clock-ms" id="static-ms">.---</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="drift-section">
+      <div class="drift-row">
+        <div class="drift-label">Clock Drift</div>
+        <div>
+          <span class="drift-val" id="static-drift-val">0</span>
+          <span class="drift-unit">ms</span>
+        </div>
+      </div>
+      <div class="drift-bar-wrap">
+        <div class="drift-bar" id="static-drift-bar" style="width:0%;background:var(--green)"></div>
+      </div>
+    </div>
+
+    <div class="node-stats">
+      <div class="ns-item"><div class="ns-label">Sync Method</div><div class="ns-val">NTP Fixed</div></div>
+      <div class="ns-item"><div class="ns-label">Trust Score</div><div class="ns-val" id="static-trust">100%</div></div>
+      <div class="ns-item"><div class="ns-label">Attack Response</div><div class="ns-val red">None</div></div>
+      <div class="ns-item"><div class="ns-label">Corrections</div><div class="ns-val" id="static-corrections">0</div></div>
+    </div>
+  </div>
+
+  <!-- RL NODE -->
+  <div class="node-panel">
+    <div class="node-header">
+      <div class="node-title rl">Node B — RL Adaptive Sync</div>
+      <div class="node-type rl">RL Agent</div>
+    </div>
+    <div class="clock-wrap">
+      <div class="clock-face">
+        <svg viewBox="0 0 180 180">
+          <circle cx="90" cy="90" r="82" fill="none" stroke="rgba(76,175,125,0.15)" stroke-width="1"/>
+          <circle cx="90" cy="90" r="76" fill="rgba(12,11,9,0.8)" stroke="none"/>
+          <circle id="rl-drift-ring" cx="90" cy="90" r="76" fill="none" stroke="rgba(76,175,125,0.2)" stroke-width="6"/>
+          <line id="rl-hour" x1="90" y1="90" x2="90" y2="40" stroke="rgba(240,234,216,0.5)" stroke-width="3" stroke-linecap="round"/>
+          <line id="rl-min" x1="90" y1="90" x2="90" y2="25" stroke="rgba(240,234,216,0.7)" stroke-width="2" stroke-linecap="round"/>
+          <line id="rl-sec" x1="90" y1="90" x2="90" y2="18" stroke="var(--green)" stroke-width="1" stroke-linecap="round"/>
+          <circle cx="90" cy="90" r="3" fill="var(--green2)"/>
+          <text x="90" y="155" text-anchor="middle" fill="rgba(76,175,125,0.4)" font-family="JetBrains Mono" font-size="9" letter-spacing="2">RL AGENT</text>
+        </svg>
+        <div class="clock-time">
+          <div class="clock-hm" id="rl-hm">--:--</div>
+          <div class="clock-ms" id="rl-ms">.---</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="drift-section">
+      <div class="drift-row">
+        <div class="drift-label">Clock Drift</div>
+        <div>
+          <span class="drift-val" id="rl-drift-val">0</span>
+          <span class="drift-unit">ms</span>
+        </div>
+      </div>
+      <div class="drift-bar-wrap">
+        <div class="drift-bar" id="rl-drift-bar" style="width:0%;background:var(--green)"></div>
+      </div>
+    </div>
+
+    <div class="node-stats">
+      <div class="ns-item"><div class="ns-label">RL State</div><div class="ns-val green" id="rl-state-val">Normal</div></div>
+      <div class="ns-item"><div class="ns-label">Trust Score</div><div class="ns-val green" id="rl-trust">100%</div></div>
+      <div class="ns-item"><div class="ns-label">Attack Response</div><div class="ns-val green" id="rl-response">Active</div></div>
+      <div class="ns-item"><div class="ns-label">Corrections</div><div class="ns-val" id="rl-corrections">0</div></div>
+    </div>
+
+    <div class="rl-state" id="rl-action-box">
+      <div class="rl-state-title">RL Agent Last Action</div>
+      <div class="rl-action" id="rl-action-text">Monitoring peer timestamps...</div>
+      <div class="rl-reward" id="rl-reward-text">Reward: +0.00 (drift maintained)</div>
+    </div>
+  </div>
+
+  <!-- BOTTOM -->
+  <div class="bottom-section">
+
+    <div class="comparison-strip">
+      <div class="comp-item"><div class="comp-label">Static Avg Drift</div><div class="comp-val bad" id="comp-static">0 ms</div></div>
+      <div class="comp-item"><div class="comp-label">RL Avg Drift</div><div class="comp-val good" id="comp-rl">0 ms</div></div>
+      <div class="comp-item"><div class="comp-label">Drift Reduction</div><div class="comp-val gold" id="comp-reduction">—</div></div>
+      <div class="comp-item"><div class="comp-label">Attacks Detected</div><div class="comp-val" id="comp-attacks">0</div></div>
+      <div class="comp-item"><div class="comp-label">RL Corrections</div><div class="comp-val good" id="comp-corrections">0</div></div>
+    </div>
+
+    <div class="events-row">
+      <div class="event-label">Inject Adversarial Event:</div>
+      <button class="event-btn spoof" onclick="injectEvent('spoof')">NTP Spoofing Attack</button>
+      <button class="event-btn byzantine" onclick="injectEvent('byzantine')">Byzantine Fault</button>
+      <button class="event-btn delay" onclick="injectEvent('delay')">Network Delay Burst</button>
+      <button class="event-btn reset" onclick="resetSim()">Reset Simulation</button>
+    </div>
+
+    <div class="chart-section">
+      <div class="chart-header">
+        <div class="chart-title">Drift History (ms) — Last 80 ticks</div>
+        <div class="chart-legend">
+          <div class="legend-item"><div class="legend-dot" style="background:var(--red)"></div>Static NTP</div>
+          <div class="legend-item"><div class="legend-dot" style="background:var(--green)"></div>RL Adaptive</div>
+        </div>
+      </div>
+      <canvas id="drift-chart"></canvas>
+    </div>
+
+    <div>
+      <div style="font-family:var(--mono);font-size:10px;letter-spacing:0.15em;text-transform:uppercase;color:var(--cream3);margin-bottom:8px;">Event Log</div>
+      <div class="event-log" id="event-log">
+        <div class="log-entry"><span class="log-time">00:00</span><span class="log-msg info">Simulation started. Both nodes initialised at reference time.</span></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+let tick = 0;
+let staticDrift = 0;
+let rlDrift = 0;
+let staticDriftHistory = [];
+let rlDriftHistory = [];
+let staticDriftSum = 0;
+let rlDriftSum = 0;
+let attackCount = 0;
+let rlCorrections = 0;
+let staticCorrections = 0;
+let activeEvent = null;
+let eventDuration = 0;
+let refTime = new Date();
+let staticOffset = 0;
+let rlOffset = 0;
+const MAX_H = 80;
+const MAX_DRIFT = 180;
+
+const canvas = document.getElementById('drift-chart');
+const ctx = canvas.getContext('2d');
+
+function addLog(msg, type='info') {
+  const el = document.getElementById('event-log');
+  const t = String(Math.floor(tick/10)).padStart(2,'0') + ':' + String((tick%10)*6).padStart(2,'0');
+  const entry = document.createElement('div');
+  entry.className = 'log-entry';
+  entry.innerHTML = `<span class="log-time">${t}</span><span class="log-msg ${type}">${msg}</span>`;
+  el.insertBefore(entry, el.firstChild);
+  while (el.children.length > 5) el.removeChild(el.lastChild);
+}
+
+function injectEvent(type) {
+  activeEvent = type;
+  eventDuration = type === 'byzantine' ? 12 : 8;
+  attackCount++;
+  const msgs = {
+    spoof: 'NTP SPOOFING ATTACK — Malicious timestamp injected into peer network',
+    byzantine: 'BYZANTINE FAULT — 2 nodes sending conflicting timestamps',
+    delay: 'NETWORK DELAY BURST — 400ms packet delay injected'
+  };
+  addLog(msgs[type], type === 'delay' ? 'info' : 'spoof');
+  document.getElementById('comp-attacks').textContent = attackCount;
+}
+
+function resetSim() {
+  staticDrift = 0; rlDrift = 0;
+  staticDriftHistory = []; rlDriftHistory = [];
+  staticDriftSum = 0; rlDriftSum = 0;
+  attackCount = 0; rlCorrections = 0; staticCorrections = 0;
+  activeEvent = null; eventDuration = 0;
+  staticOffset = 0; rlOffset = 0; tick = 0;
+  document.getElementById('event-log').innerHTML = '<div class="log-entry"><span class="log-time">00:00</span><span class="log-msg info">Simulation reset.</span></div>';
+  updateStats();
+}
+
+function driftClass(d) {
+  if (d < 20) return 'ok';
+  if (d < 60) return 'warn';
+  return 'bad';
+}
+
+function drawClockHands(prefix, hm, sec, drift) {
+  const now = new Date(refTime.getTime() + (prefix === 'static' ? staticOffset : rlOffset));
+  const h = now.getHours() % 12;
+  const m = now.getMinutes();
+  const s = now.getSeconds();
+  const ms = now.getMilliseconds();
+
+  const hAngle = (h / 12 + m / 720) * 360;
+  const mAngle = (m / 60 + s / 3600) * 360;
+  const sAngle = (s / 60 + ms / 60000) * 360;
+
+  const toRad = a => (a - 90) * Math.PI / 180;
+  const arm = (id, angle, len) => {
+    const el = document.getElementById(id);
+    const r = toRad(angle);
+    el.setAttribute('x2', 90 + Math.cos(r) * len);
+    el.setAttribute('y2', 90 + Math.sin(r) * len);
+  };
+  arm(prefix + '-hour', hAngle, 50);
+  arm(prefix + '-min', mAngle, 65);
+  arm(prefix + '-sec', sAngle, 72);
+
+  const hStr = String(h || 12) + ':' + String(m).padStart(2,'0');
+  const msStr = '.' + String(ms).padStart(3,'0');
+  document.getElementById(prefix + '-hm').textContent = hStr;
+  document.getElementById(prefix + '-ms').textContent = msStr;
+}
+
+function updateStats() {
+  const sa = staticDriftHistory.length ? Math.round(staticDriftSum / staticDriftHistory.length) : 0;
+  const ra = rlDriftHistory.length ? Math.round(rlDriftSum / rlDriftHistory.length) : 0;
+  document.getElementById('comp-static').textContent = sa + ' ms';
+  document.getElementById('comp-rl').textContent = ra + ' ms';
+  if (sa > 0 && ra >= 0) {
+    const reduction = Math.round(((sa - ra) / sa) * 100);
+    document.getElementById('comp-reduction').textContent = (reduction > 0 ? '+' : '') + reduction + '%';
+  }
+  document.getElementById('comp-corrections').textContent = rlCorrections;
+}
+
+function drawChart() {
+  const w = canvas.offsetWidth; const h = canvas.offsetHeight;
+  canvas.width = w; canvas.height = h;
+  if (staticDriftHistory.length < 2) return;
+
+  const maxD = Math.max(...staticDriftHistory, ...rlDriftHistory, 10);
+  const toX = i => (i / (MAX_H - 1)) * (w - 20) + 10;
+  const toY = v => h - 8 - (v / (maxD + 10)) * (h - 16);
+
+  ctx.clearRect(0, 0, w, h);
+
+  // grid
+  ctx.strokeStyle = 'rgba(240,234,216,0.04)';
+  ctx.lineWidth = 0.5;
+  for (let i = 0; i <= 3; i++) {
+    const y = 8 + (i/3) * (h-16);
+    ctx.beginPath(); ctx.moveTo(10,y); ctx.lineTo(w-10,y); ctx.stroke();
+  }
+
+  // event zones
+  // static line
+  ctx.strokeStyle = 'rgba(224,90,74,0.7)';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  staticDriftHistory.forEach((v, i) => i===0 ? ctx.moveTo(toX(i),toY(v)) : ctx.lineTo(toX(i),toY(v)));
+  ctx.stroke();
+
+  // rl line
+  ctx.strokeStyle = 'rgba(76,175,125,0.9)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  rlDriftHistory.forEach((v, i) => i===0 ? ctx.moveTo(toX(i),toY(v)) : ctx.lineTo(toX(i),toY(v)));
+  ctx.stroke();
+
+  // dots at end
+  const sl = staticDriftHistory[staticDriftHistory.length-1];
+  const rl = rlDriftHistory[rlDriftHistory.length-1];
+  ctx.fillStyle='rgba(224,90,74,0.9)';
+  ctx.beginPath(); ctx.arc(toX(staticDriftHistory.length-1),toY(sl),3,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle='rgba(76,175,125,0.9)';
+  ctx.beginPath(); ctx.arc(toX(rlDriftHistory.length-1),toY(rl),3,0,Math.PI*2); ctx.fill();
+}
+
+const rlActions = [
+  'Adjusting sync interval: 500ms → 250ms',
+  'Flagging peer node as low-trust',
+  'Switching to backup NTP stratum',
+  'Applying gradient correction: -12ms',
+  'Isolating Byzantine peer from pool',
+  'Increasing polling frequency',
+  'Computing consensus timestamp',
+  'Dampening oscillation: smoothing=0.3',
+];
+
+let simTimer;
+function simulate() {
+  tick++;
+  const now = new Date();
+  refTime = now;
+
+  // Static node — drifts naturally, extra during attacks
+  let staticInc = (Math.random() - 0.3) * 3;
+  if (activeEvent === 'spoof') staticInc += 12 + Math.random() * 8;
+  if (activeEvent === 'byzantine') staticInc += 6 + Math.random() * 5;
+  if (activeEvent === 'delay') staticInc += 4 + Math.random() * 4;
+  staticOffset += staticInc * 1000;
+  staticDrift = Math.max(0, staticDrift + staticInc);
+  staticDrift = Math.min(staticDrift, MAX_DRIFT);
+
+  // Occasionally "corrects" (static NTP poll)
+  if (Math.random() < 0.06 && !activeEvent) {
+    staticDrift *= 0.6;
+    staticCorrections++;
+    document.getElementById('static-corrections').textContent = staticCorrections;
+  }
+
+  // RL node — responds to attacks, maintains lower drift
+  let rlInc = (Math.random() - 0.45) * 2;
+  let rlAction = 'Monitoring peer timestamps...';
+  let rlReward = '+0.12';
+
+  if (activeEvent === 'spoof') {
+    rlInc += 3 + Math.random() * 3;
+    rlAction = rlActions[Math.floor(Math.random() * 3)];
+    rlReward = '+0.48 (attack detected, correcting)';
+    if (Math.random() < 0.4) { rlDrift *= 0.75; rlCorrections++; rlAction = 'Blocking spoofed timestamps — trust reset'; }
+    document.getElementById('rl-state-val').textContent = 'ATTACK';
+    document.getElementById('rl-state-val').className = 'ns-val red';
+    document.getElementById('rl-response').textContent = 'Mitigating';
+    document.getElementById('rl-response').className = 'ns-val amber';
+  } else if (activeEvent === 'byzantine') {
+    rlInc += 2 + Math.random() * 2;
+    rlAction = rlActions[4];
+    rlReward = '+0.35 (byzantine isolated)';
+    if (Math.random() < 0.5) { rlDrift *= 0.8; rlCorrections++; }
+    document.getElementById('rl-state-val').textContent = 'Byzantine';
+    document.getElementById('rl-state-val').className = 'ns-val amber';
+  } else if (activeEvent === 'delay') {
+    rlInc += 1.5 + Math.random() * 2;
+    rlAction = rlActions[5];
+    rlReward = '+0.22 (compensating delay)';
+    if (Math.random() < 0.5) { rlDrift *= 0.85; rlCorrections++; }
+    document.getElementById('rl-state-val').textContent = 'High Delay';
+    document.getElementById('rl-state-val').className = 'ns-val amber';
+  } else {
+    if (rlDrift > 15 && Math.random() < 0.35) {
+      rlInc -= 4; rlCorrections++;
+      rlAction = rlActions[Math.floor(Math.random()*rlActions.length)];
+      rlReward = '+0.18 (proactive correction)';
+    }
+    document.getElementById('rl-state-val').textContent = 'Normal';
+    document.getElementById('rl-state-val').className = 'ns-val green';
+    document.getElementById('rl-response').textContent = 'Active';
+    document.getElementById('rl-response').className = 'ns-val green';
+  }
+
+  rlOffset += rlInc * 1000;
+  rlDrift = Math.max(0, rlDrift + rlInc);
+  rlDrift = Math.min(rlDrift, MAX_DRIFT);
+  document.getElementById('rl-corrections').textContent = rlCorrections;
+
+  // Event countdown
+  if (activeEvent) {
+    eventDuration--;
+    if (eventDuration <= 0) {
+      if (activeEvent !== 'delay') addLog('RL Agent: Attack mitigated — returning to stable sync', 'rl');
+      activeEvent = null;
+      document.getElementById('rl-state-val').textContent = 'Recovering';
+      setTimeout(() => {
+        document.getElementById('rl-state-val').textContent = 'Normal';
+        document.getElementById('rl-state-val').className = 'ns-val green';
+      }, 2000);
+    }
+  }
+
+  // Update history
+  staticDriftHistory.push(Math.round(staticDrift));
+  rlDriftHistory.push(Math.round(rlDrift));
+  if (staticDriftHistory.length > MAX_H) staticDriftHistory.shift();
+  if (rlDriftHistory.length > MAX_H) rlDriftHistory.shift();
+  staticDriftSum += staticDrift;
+  rlDriftSum += rlDrift;
+
+  // Update clock hands
+  drawClockHands('static');
+  drawClockHands('rl');
+
+  // Update drift displays
+  const sd = Math.round(staticDrift);
+  const rd = Math.round(rlDrift);
+  const sdEl = document.getElementById('static-drift-val');
+  sdEl.textContent = sd;
+  sdEl.className = 'drift-val ' + driftClass(sd);
+  document.getElementById('static-drift-bar').style.width = Math.min(100, sd/MAX_DRIFT*100) + '%';
+  document.getElementById('static-drift-bar').style.background = sd < 20 ? 'var(--green)' : sd < 60 ? 'var(--amber)' : 'var(--red)';
+
+  const rdEl = document.getElementById('rl-drift-val');
+  rdEl.textContent = rd;
+  rdEl.className = 'drift-val ' + driftClass(rd);
+  document.getElementById('rl-drift-bar').style.width = Math.min(100, rd/MAX_DRIFT*100) + '%';
+  document.getElementById('rl-drift-bar').style.background = rd < 20 ? 'var(--green)' : rd < 60 ? 'var(--amber)' : 'var(--red)';
+
+  // Trust scores
+  const rlTrust = Math.max(60, Math.round(100 - rlDrift * 0.2));
+  const staticTrust = Math.max(30, Math.round(100 - staticDrift * 0.3));
+  document.getElementById('rl-trust').textContent = rlTrust + '%';
+  document.getElementById('static-trust').textContent = staticTrust + '%';
+
+  // RL action display
+  document.getElementById('rl-action-text').textContent = rlAction;
+  document.getElementById('rl-reward-text').textContent = 'Reward: ' + rlReward;
+
+  updateStats();
+  drawChart();
+}
+
+setInterval(simulate, 600);
+simulate();
+</script>
+</body>
+</html>

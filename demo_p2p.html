@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>P2P Energy Marketplace — Live Demo</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300&family=Syne:wght@400;500;700&family=JetBrains+Mono:wght@300;400&display=swap" rel="stylesheet">
+<style>
+:root {
+  --ink:#0c0b09;--ink2:#141310;--ink3:#1e1c19;--ink4:#252320;
+  --cream:#f0ead8;--cream2:#c8bfa8;--cream3:#7a7060;
+  --gold:#d4a843;--gold2:#f0c060;--gold3:#8a6820;
+  --green:#4caf7d;--green2:#2d7a52;--green3:#1a4a32;
+  --red:#e05a4a;--red2:#a03a2a;
+  --blue:#4a8fd4;--blue2:#2a5f9a;
+  --mono:'JetBrains Mono',monospace;
+  --serif:'Cormorant Garamond',serif;
+  --sans:'Syne',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--ink);color:var(--cream);font-family:var(--sans);min-height:100vh;padding:0;}
+
+/* HEADER */
+.demo-header{padding:28px 40px 20px;border-bottom:1px solid rgba(212,168,67,0.15);display:flex;align-items:center;justify-content:space-between;}
+.demo-title{font-family:var(--serif);font-size:22px;font-weight:300;color:var(--cream);}
+.demo-title span{color:var(--gold);font-style:italic;}
+.demo-badge{font-family:var(--mono);font-size:10px;letter-spacing:0.15em;text-transform:uppercase;color:var(--gold3);background:rgba(212,168,67,0.08);border:1px solid rgba(212,168,67,0.2);padding:5px 12px;}
+.live-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--green);margin-right:6px;animation:pulse 1.8s ease-in-out infinite;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.4;}}
+
+/* LAYOUT */
+.main{display:grid;grid-template-columns:300px 1fr;gap:0;min-height:calc(100vh - 73px);}
+
+/* CONTROLS PANEL */
+.controls{background:var(--ink2);border-right:1px solid rgba(240,234,216,0.06);padding:28px 24px;display:flex;flex-direction:column;gap:28px;}
+.ctrl-section-title{font-family:var(--mono);font-size:10px;letter-spacing:0.2em;text-transform:uppercase;color:var(--gold);margin-bottom:14px;padding-bottom:8px;border-bottom:1px solid rgba(212,168,67,0.12);}
+.ctrl-row{margin-bottom:18px;}
+.ctrl-label{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
+.ctrl-name{font-size:13px;color:var(--cream2);}
+.ctrl-val{font-family:var(--mono);font-size:13px;color:var(--gold);font-weight:400;}
+input[type=range]{width:100%;height:4px;-webkit-appearance:none;background:rgba(240,234,216,0.1);border-radius:2px;outline:none;cursor:pointer;}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:var(--gold);cursor:pointer;transition:background 0.2s;}
+input[type=range]::-webkit-slider-thumb:hover{background:var(--gold2);}
+
+.mode-toggle{display:flex;gap:0;border:1px solid rgba(212,168,67,0.2);overflow:hidden;}
+.mode-btn{flex:1;padding:9px 8px;font-family:var(--mono);font-size:10px;letter-spacing:0.1em;text-transform:uppercase;background:none;border:none;color:var(--cream3);cursor:pointer;transition:all 0.2s;}
+.mode-btn.active{background:var(--gold);color:var(--ink);}
+.mode-btn:not(.active):hover{background:rgba(212,168,67,0.08);color:var(--cream);}
+
+.price-display{background:var(--ink3);border:1px solid rgba(212,168,67,0.2);padding:20px;text-align:center;margin-top:4px;}
+.price-label{font-family:var(--mono);font-size:10px;letter-spacing:0.15em;text-transform:uppercase;color:var(--cream3);margin-bottom:8px;}
+.price-val{font-family:var(--serif);font-size:48px;font-weight:300;color:var(--gold);line-height:1;}
+.price-unit{font-family:var(--mono);font-size:11px;color:var(--cream3);margin-top:4px;}
+.price-change{font-family:var(--mono);font-size:12px;margin-top:6px;}
+.price-up{color:var(--red);}
+.price-down{color:var(--green);}
+
+.static-comparison{display:flex;gap:8px;margin-top:12px;}
+.comp-box{flex:1;background:var(--ink3);border:1px solid rgba(240,234,216,0.08);padding:10px;text-align:center;}
+.comp-box.highlight{border-color:rgba(212,168,67,0.3);}
+.comp-label{font-family:var(--mono);font-size:9px;letter-spacing:0.1em;text-transform:uppercase;color:var(--cream3);margin-bottom:4px;}
+.comp-val{font-family:var(--serif);font-size:20px;color:var(--cream);font-weight:300;}
+.comp-eff{font-family:var(--mono);font-size:10px;margin-top:3px;}
+
+.inject-btn{width:100%;padding:11px;font-family:var(--mono);font-size:10px;letter-spacing:0.12em;text-transform:uppercase;background:rgba(224,90,74,0.1);border:1px solid rgba(224,90,74,0.3);color:var(--red);cursor:pointer;transition:all 0.2s;margin-top:6px;}
+.inject-btn:hover{background:rgba(224,90,74,0.2);}
+.inject-btn.active-event{background:rgba(224,90,74,0.25);border-color:var(--red);}
+
+/* MAIN PANEL */
+.market-panel{background:var(--ink);display:flex;flex-direction:column;overflow:hidden;}
+
+/* PRICE CHART */
+.chart-area{padding:28px 32px 20px;border-bottom:1px solid rgba(240,234,216,0.06);flex-shrink:0;}
+.chart-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;}
+.chart-title{font-family:var(--mono);font-size:11px;letter-spacing:0.15em;text-transform:uppercase;color:var(--cream3);}
+.chart-legend{display:flex;gap:20px;}
+.legend-item{display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:10px;color:var(--cream3);}
+.legend-dot{width:8px;height:3px;border-radius:2px;}
+canvas{width:100%;height:140px;display:block;}
+
+/* TRADE BOARD */
+.trade-board{flex:1;padding:24px 32px;display:grid;grid-template-columns:1fr 60px 1fr;gap:0;align-items:start;}
+.board-col-title{font-family:var(--mono);font-size:10px;letter-spacing:0.15em;text-transform:uppercase;margin-bottom:14px;}
+.buyers-title{color:var(--green);}
+.sellers-title{color:var(--red);}
+.mid-title{color:var(--cream3);text-align:center;}
+
+.order-list{display:flex;flex-direction:column;gap:4px;max-height:280px;overflow:hidden;}
+.order-row{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:var(--ink3);border-left:2px solid transparent;font-size:13px;animation:slideIn 0.3s ease;}
+@keyframes slideIn{from{opacity:0;transform:translateX(-8px);}to{opacity:1;transform:translateX(0);}}
+.order-row.buy{border-left-color:var(--green2);}
+.order-row.sell{border-left-color:var(--red2);}
+.order-row.matched{background:rgba(76,175,125,0.08);border-left-color:var(--green);opacity:0.6;}
+.order-id{font-family:var(--mono);font-size:10px;color:var(--cream3);}
+.order-kwh{font-family:var(--mono);font-size:12px;color:var(--cream);}
+.order-price{font-family:var(--mono);font-size:12px;}
+.order-price.buy-price{color:var(--green);}
+.order-price.sell-price{color:var(--red);}
+
+.mid-col{display:flex;flex-direction:column;align-items:center;gap:8px;padding-top:32px;}
+.match-line{width:1px;flex:1;background:linear-gradient(to bottom,rgba(212,168,67,0.05),rgba(212,168,67,0.3),rgba(212,168,67,0.05));min-height:200px;}
+.match-count{font-family:var(--serif);font-size:28px;color:var(--gold);font-weight:300;}
+.match-label{font-family:var(--mono);font-size:9px;letter-spacing:0.1em;text-transform:uppercase;color:var(--cream3);text-align:center;}
+
+/* STATS BAR */
+.stats-bar{background:var(--ink2);border-top:1px solid rgba(240,234,216,0.06);padding:16px 32px;display:flex;gap:40px;flex-shrink:0;}
+.stat-item{display:flex;flex-direction:column;gap:2px;}
+.stat-label{font-family:var(--mono);font-size:9px;letter-spacing:0.15em;text-transform:uppercase;color:var(--cream3);}
+.stat-value{font-family:var(--serif);font-size:22px;font-weight:300;color:var(--cream);}
+.stat-value.good{color:var(--green);}
+.stat-value.gold{color:var(--gold);}
+
+/* EVENT FLASH */
+.event-flash{position:fixed;top:90px;right:32px;background:var(--ink3);border:1px solid var(--red);padding:12px 18px;font-family:var(--mono);font-size:11px;color:var(--red);letter-spacing:0.1em;text-transform:uppercase;opacity:0;transition:opacity 0.3s;z-index:100;pointer-events:none;}
+.event-flash.show{opacity:1;}
+
+@media(max-width:900px){
+  .main{grid-template-columns:1fr;}
+  .controls{border-right:none;border-bottom:1px solid rgba(240,234,216,0.06);}
+}
+</style>
+</head>
+<body>
+
+<div class="demo-header">
+  <div class="demo-title"><span>P2P</span> Renewable Energy Marketplace — Live Pricing Demo</div>
+  <div class="demo-badge"><span class="live-dot"></span>Live simulation</div>
+</div>
+
+<div class="main">
+  <div class="controls">
+
+    <div>
+      <div class="ctrl-section-title">Market Signals</div>
+      <div class="ctrl-row">
+        <div class="ctrl-label"><span class="ctrl-name">Grid Demand</span><span class="ctrl-val" id="demand-val">65%</span></div>
+        <input type="range" id="demand" min="0" max="100" value="65" step="1">
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label"><span class="ctrl-name">Solar Supply</span><span class="ctrl-val" id="supply-val">50%</span></div>
+        <input type="range" id="supply" min="0" max="100" value="50" step="1">
+      </div>
+      <div class="ctrl-row">
+        <div class="ctrl-label"><span class="ctrl-name">Weather Score</span><span class="ctrl-val" id="weather-val">70%</span></div>
+        <input type="range" id="weather" min="0" max="100" value="70" step="1">
+      </div>
+    </div>
+
+    <div>
+      <div class="ctrl-section-title">Pricing Mode</div>
+      <div class="mode-toggle">
+        <button class="mode-btn active" id="btn-ai" onclick="setMode('ai')">AI Dynamic</button>
+        <button class="mode-btn" id="btn-static" onclick="setMode('static')">Static</button>
+      </div>
+      <div class="price-display" style="margin-top:16px;">
+        <div class="price-label">Current Market Price</div>
+        <div class="price-val" id="current-price">8.4</div>
+        <div class="price-unit">pence per kWh</div>
+        <div class="price-change" id="price-change">— stable</div>
+      </div>
+      <div class="static-comparison">
+        <div class="comp-box highlight">
+          <div class="comp-label">AI Price</div>
+          <div class="comp-val" id="ai-price-comp">8.4p</div>
+          <div class="comp-eff" style="color:var(--green)">+<span id="eff-gain">40</span>% eff.</div>
+        </div>
+        <div class="comp-box">
+          <div class="comp-label">Static</div>
+          <div class="comp-val" id="static-price-comp">10.0p</div>
+          <div class="comp-eff" style="color:var(--cream3)">baseline</div>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="ctrl-section-title">Market Events</div>
+      <button class="inject-btn" id="btn-spike" onclick="injectEvent('spike')">Inject Demand Spike</button>
+      <button class="inject-btn" id="btn-cloud" onclick="injectEvent('cloud')">Cloud Cover Event</button>
+      <button class="inject-btn" id="btn-surplus" onclick="injectEvent('surplus')">Surplus Supply Dump</button>
+    </div>
+
+  </div>
+
+  <div class="market-panel">
+    <div class="chart-area">
+      <div class="chart-header">
+        <div class="chart-title">Price History (last 60 ticks)</div>
+        <div class="chart-legend">
+          <div class="legend-item"><div class="legend-dot" style="background:var(--gold)"></div>AI Dynamic</div>
+          <div class="legend-item"><div class="legend-dot" style="background:rgba(240,234,216,0.25)"></div>Static Baseline</div>
+        </div>
+      </div>
+      <canvas id="price-chart"></canvas>
+    </div>
+
+    <div class="trade-board">
+      <div>
+        <div class="board-col-title buyers-title">Buyers</div>
+        <div class="order-list" id="buyer-list"></div>
+      </div>
+      <div class="mid-col">
+        <div class="board-col-title mid-title" style="margin-bottom:8px;font-size:9px;">Matched</div>
+        <div class="match-count" id="match-count">0</div>
+        <div class="match-label">trades<br>cleared</div>
+        <div class="match-line"></div>
+      </div>
+      <div>
+        <div class="board-col-title sellers-title" style="text-align:right;">Sellers</div>
+        <div class="order-list" id="seller-list"></div>
+      </div>
+    </div>
+
+    <div class="stats-bar">
+      <div class="stat-item"><div class="stat-label">Volume Traded</div><div class="stat-value gold" id="stat-volume">0 kWh</div></div>
+      <div class="stat-item"><div class="stat-label">Trades Cleared</div><div class="stat-value good" id="stat-trades">0</div></div>
+      <div class="stat-item"><div class="stat-label">Efficiency vs Static</div><div class="stat-value good" id="stat-eff">+0%</div></div>
+      <div class="stat-item"><div class="stat-label">Stranded Supply</div><div class="stat-value" id="stat-stranded">0 kWh</div></div>
+      <div class="stat-item"><div class="stat-label">Avg Match Time</div><div class="stat-value" id="stat-matchtime">—</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="event-flash" id="event-flash"></div>
+
+<script>
+let mode = 'ai';
+let priceHistory = [];
+let staticHistory = [];
+let totalMatches = 0;
+let totalVolume = 0;
+let totalStranded = 0;
+let aiEfficiencySum = 0;
+let tickCount = 0;
+let eventActive = null;
+let eventTimer = null;
+let lastPrice = 8.4;
+const STATIC_PRICE = 10.0;
+const MAX_HISTORY = 60;
+
+const canvas = document.getElementById('price-chart');
+const ctx = canvas.getContext('2d');
+
+function getSignals() {
+  return {
+    demand: parseInt(document.getElementById('demand').value) / 100,
+    supply: parseInt(document.getElementById('supply').value) / 100,
+    weather: parseInt(document.getElementById('weather').value) / 100
+  };
+}
+
+function calcAIPrice(s) {
+  let d = s.demand, sup = s.supply, w = s.weather;
+  if (eventActive === 'spike') d = Math.min(1, d + 0.35);
+  if (eventActive === 'cloud') { sup = Math.max(0, sup - 0.4); w = Math.max(0, w - 0.5); }
+  if (eventActive === 'surplus') sup = Math.min(1, sup + 0.45);
+  const supplyFactor = 1 - (sup * 0.4 + w * 0.15);
+  const demandFactor = 1 + d * 0.5;
+  const base = 6.0;
+  let price = base * demandFactor * supplyFactor;
+  price = Math.max(3.5, Math.min(18.0, price));
+  const smoothing = 0.25;
+  price = lastPrice * (1 - smoothing) + price * smoothing;
+  return Math.round(price * 10) / 10;
+}
+
+function calcEfficiency(aiPrice) {
+  const idealPrice = STATIC_PRICE * 0.6 + aiPrice * 0.4;
+  const aiUtil = 1 - Math.abs(aiPrice - idealPrice) / idealPrice;
+  const staticUtil = 1 - Math.abs(STATIC_PRICE - idealPrice) / idealPrice;
+  return Math.round(((aiUtil - staticUtil) / staticUtil) * 100);
+}
+
+function updateSliders() {
+  ['demand','supply','weather'].forEach(id => {
+    const v = document.getElementById(id).value;
+    document.getElementById(id + '-val').textContent = v + '%';
+  });
+}
+
+['demand','supply','weather'].forEach(id => {
+  document.getElementById(id).addEventListener('input', updateSliders);
+});
+
+function setMode(m) {
+  mode = m;
+  document.getElementById('btn-ai').classList.toggle('active', m === 'ai');
+  document.getElementById('btn-static').classList.toggle('active', m === 'static');
+}
+
+function injectEvent(type) {
+  if (eventTimer) clearTimeout(eventTimer);
+  eventActive = type;
+  const btn = document.getElementById('btn-' + (type === 'spike' ? 'spike' : type === 'cloud' ? 'cloud' : 'surplus'));
+  document.querySelectorAll('.inject-btn').forEach(b => b.classList.remove('active-event'));
+  btn.classList.add('active-event');
+  const labels = { spike:'DEMAND SPIKE INJECTED', cloud:'CLOUD COVER EVENT', surplus:'SUPPLY SURPLUS DUMPED' };
+  const flash = document.getElementById('event-flash');
+  flash.textContent = labels[type];
+  flash.classList.add('show');
+  eventTimer = setTimeout(() => {
+    eventActive = null;
+    btn.classList.remove('active-event');
+    flash.classList.remove('show');
+  }, 5000);
+}
+
+let buyerIdCounter = 1;
+let sellerIdCounter = 1;
+
+function genOrder(type, price) {
+  const spread = type === 'buy' ? 1.5 : -1.2;
+  const orderPrice = Math.max(2, Math.round((price + (Math.random() - 0.5) * spread * 2) * 10) / 10);
+  const kwh = Math.floor(Math.random() * 45 + 5);
+  const id = type === 'buy' ? buyerIdCounter++ : sellerIdCounter++;
+  return { id: 'B' + String(id).padStart(3,'0'), kwh, price: orderPrice, type, matched: false };
+}
+
+let buyOrders = [];
+let sellOrders = [];
+
+function matchOrders(price) {
+  const newBuyers = Array.from({length: Math.floor(Math.random() * 2 + 1)}, () => genOrder('buy', price));
+  const newSellers = Array.from({length: Math.floor(Math.random() * 2 + 1)}, () => genOrder('sell', price));
+  buyOrders = [...newBuyers, ...buyOrders].slice(0, 7);
+  sellOrders = [...newSellers, ...sellOrders].slice(0, 7);
+
+  let matched = 0;
+  let vol = 0;
+  let stranded = 0;
+
+  buyOrders.forEach(b => {
+    if (b.matched) return;
+    const matchableSellers = sellOrders.filter(s => !s.matched && s.price <= b.price);
+    if (matchableSellers.length > 0) {
+      const seller = matchableSellers[0];
+      b.matched = true; seller.matched = true;
+      matched++;
+      vol += Math.min(b.kwh, seller.kwh);
+    }
+  });
+  sellOrders.filter(s => !s.matched).forEach(s => stranded += s.kwh);
+
+  totalMatches += matched;
+  totalVolume += vol;
+  totalStranded += stranded;
+  return { matched, vol, stranded };
+}
+
+function renderOrders() {
+  const buyList = document.getElementById('buyer-list');
+  const sellList = document.getElementById('seller-list');
+
+  buyList.innerHTML = buyOrders.map(o => `
+    <div class="order-row buy${o.matched?' matched':''}">
+      <span class="order-id">${o.id}</span>
+      <span class="order-kwh">${o.kwh} kWh</span>
+      <span class="order-price buy-price">${o.price.toFixed(1)}p</span>
+    </div>`).join('');
+
+  sellList.innerHTML = sellOrders.map(o => `
+    <div class="order-row sell${o.matched?' matched':''}">
+      <span class="order-price sell-price">${o.price.toFixed(1)}p</span>
+      <span class="order-kwh">${o.kwh} kWh</span>
+      <span class="order-id">${o.id.replace('B','S')}</span>
+    </div>`).join('');
+}
+
+function drawChart() {
+  const w = canvas.offsetWidth; const h = canvas.offsetHeight;
+  canvas.width = w; canvas.height = h;
+  if (priceHistory.length < 2) return;
+
+  const allVals = [...priceHistory, ...staticHistory];
+  const minV = Math.max(0, Math.min(...allVals) - 1);
+  const maxV = Math.max(...allVals) + 1;
+  const toX = i => (i / (MAX_HISTORY - 1)) * (w - 20) + 10;
+  const toY = v => h - 10 - ((v - minV) / (maxV - minV)) * (h - 20);
+
+  ctx.clearRect(0, 0, w, h);
+
+  // Grid lines
+  ctx.strokeStyle = 'rgba(240,234,216,0.05)';
+  ctx.lineWidth = 0.5;
+  for (let i = 0; i <= 4; i++) {
+    const y = 10 + (i / 4) * (h - 20);
+    ctx.beginPath(); ctx.moveTo(10, y); ctx.lineTo(w - 10, y); ctx.stroke();
+  }
+
+  // Static line
+  if (staticHistory.length > 1) {
+    ctx.strokeStyle = 'rgba(240,234,216,0.2)';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath();
+    staticHistory.forEach((v, i) => i === 0 ? ctx.moveTo(toX(i), toY(v)) : ctx.lineTo(toX(i), toY(v)));
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  // AI price line
+  if (priceHistory.length > 1) {
+    ctx.strokeStyle = 'rgba(212,168,67,0.9)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    priceHistory.forEach((v, i) => i === 0 ? ctx.moveTo(toX(i), toY(v)) : ctx.lineTo(toX(i), toY(v)));
+    ctx.stroke();
+
+    // Dot at end
+    const last = priceHistory[priceHistory.length - 1];
+    const lx = toX(priceHistory.length - 1);
+    const ly = toY(last);
+    ctx.fillStyle = 'var(--gold)';
+    ctx.beginPath(); ctx.arc(lx, ly, 4, 0, Math.PI * 2); ctx.fill();
+  }
+}
+
+function tick() {
+  const signals = getSignals();
+  const aiPrice = calcAIPrice(signals);
+  const displayPrice = mode === 'ai' ? aiPrice : STATIC_PRICE;
+  const prevPrice = lastPrice;
+  lastPrice = aiPrice;
+  tickCount++;
+
+  priceHistory.push(aiPrice);
+  staticHistory.push(STATIC_PRICE);
+  if (priceHistory.length > MAX_HISTORY) priceHistory.shift();
+  if (staticHistory.length > MAX_HISTORY) staticHistory.shift();
+
+  const priceEl = document.getElementById('current-price');
+  priceEl.textContent = displayPrice.toFixed(1);
+
+  const diff = aiPrice - prevPrice;
+  const changeEl = document.getElementById('price-change');
+  if (Math.abs(diff) < 0.05) { changeEl.textContent = '— stable'; changeEl.className = 'price-change'; }
+  else if (diff > 0) { changeEl.textContent = '+' + diff.toFixed(1) + 'p rising'; changeEl.className = 'price-change price-up'; }
+  else { changeEl.textContent = diff.toFixed(1) + 'p falling'; changeEl.className = 'price-change price-down'; }
+
+  const eff = Math.max(0, calcEfficiency(aiPrice));
+  document.getElementById('ai-price-comp').textContent = aiPrice.toFixed(1) + 'p';
+  document.getElementById('static-price-comp').textContent = STATIC_PRICE.toFixed(1) + 'p';
+  document.getElementById('eff-gain').textContent = eff;
+
+  const { matched, vol, stranded } = matchOrders(displayPrice);
+  renderOrders();
+
+  document.getElementById('match-count').textContent = totalMatches;
+  document.getElementById('stat-trades').textContent = totalMatches;
+  document.getElementById('stat-volume').textContent = (totalVolume).toLocaleString() + ' kWh';
+  document.getElementById('stat-eff').textContent = '+' + eff + '%';
+  document.getElementById('stat-stranded').textContent = Math.round(totalStranded / Math.max(1, tickCount)) + ' kWh';
+  document.getElementById('stat-matchtime').textContent = (Math.random() * 0.3 + 0.1).toFixed(2) + 's';
+
+  drawChart();
+}
+
+setInterval(tick, 1200);
+tick();
+</script>
+</body>
+</html>
